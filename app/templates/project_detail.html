@@ -81,15 +81,31 @@
 
       <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
         <div class="p-4 border-b font-semibold">Assets</div>
+        <div class="p-4 border-b">
+          <form method="post" action="/projects/{{ project.id }}/assets/upload" enctype="multipart/form-data" class="grid md:grid-cols-4 gap-2 items-start">
+            <input type="file" name="files" multiple class="border rounded-xl px-3 py-2 text-sm w-full md:col-span-2" required/>
+            <input class="border rounded-xl px-3 py-2 text-sm w-full" name="tags" placeholder="Tags (comma separated)"/>
+            <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Upload</button>
+            <textarea class="border rounded-xl px-3 py-2 text-sm w-full md:col-span-4" name="notes" rows="2" placeholder="Notes for these files"></textarea>
+          </form>
+          <div class="text-xs text-slate-500 mt-2">Upload multiple files directly to this project.</div>
+        </div>
         <div class="p-4 grid md:grid-cols-3 gap-3">
           {% for a in assets %}
             <a class="border rounded-xl p-3 hover:bg-slate-50" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">
-              <div class="text-sm font-medium truncate">{{ a.filename }}</div>
+              <div class="h-28 w-full rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+                {% if a.mime_type and a.mime_type.startswith("image/") %}
+                  <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
+                {% else %}
+                  <span class="uppercase">{{ a.filename.split('.')[-1] if '.' in a.filename else 'file' }}</span>
+                {% endif %}
+              </div>
+              <div class="text-sm font-medium truncate mt-2">{{ a.filename }}</div>
               <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes</div>
               {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
             </a>
           {% else %}
-            <div class="text-slate-600">No assets yet. Upload via Assets page.</div>
+            <div class="text-slate-600">No assets yet. Upload files above.</div>
           {% endfor %}
         </div>
       </div>

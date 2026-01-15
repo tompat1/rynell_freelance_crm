@@ -19,6 +19,11 @@
       {% endif %}
     </div>
   {% endif %}
+  {% if error == "missing_csv" %}
+    <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+      Please choose a CSV file to import.
+    </div>
+  {% endif %}
 
   <div class="grid md:grid-cols-3 gap-6 mt-6">
     <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">

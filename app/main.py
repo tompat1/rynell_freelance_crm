@@ -353,6 +353,36 @@ def contacts_update(
         add_activity(session, "UPDATE", "Contact", c.id, f"Updated contact: {c.first_name} {c.last_name}", changes=changes)
     return RedirectResponse(url=f"/contacts/{c.id}", status_code=303)
 
+@app.post("/contacts/{contact_id}/delete")
+def contacts_delete(contact_id: int, next_url: str = Form("/contacts"), session=Depends(session_dep)):
+    contact = session.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+    full_name = f"{contact.first_name} {contact.last_name}"
+    leads = session.exec(select(Lead).where(Lead.contact_id == contact_id)).all()
+    for lead in leads:
+        lead.contact_id = None
+        lead.updated_at = now_utc()
+        session.add(lead)
+    projects = session.exec(select(Project).where(Project.contact_id == contact_id)).all()
+    for project in projects:
+        project.contact_id = None
+        project.updated_at = now_utc()
+        session.add(project)
+    assets = session.exec(select(Asset).where(Asset.contact_id == contact_id)).all()
+    for asset in assets:
+        asset.contact_id = None
+        session.add(asset)
+    events = session.exec(select(Event).where(Event.contact_id == contact_id)).all()
+    for event in events:
+        event.contact_id = None
+        event.updated_at = now_utc()
+        session.add(event)
+    session.delete(contact)
+    session.commit()
+    add_activity(session, "DELETE", "Contact", contact_id, f"Deleted contact: {full_name}")
+    return RedirectResponse(url=next_url, status_code=303)
+
 # ---------- Companies ----------
 @app.get("/companies", response_class=HTMLResponse)
 def companies_list(request: Request, session=Depends(session_dep)):

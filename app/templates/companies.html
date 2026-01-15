@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+  <div>
+    <h1 class="text-2xl font-semibold">Companies</h1>
+    <p class="text-slate-600">Client orgs + brands.</p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6 mt-6">
+    <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-4 border-b font-semibold">All companies</div>
+      <div class="divide-y">
+        {% for c in companies %}
+          <div class="p-4">
+            <div class="font-medium">{{ c.name }}</div>
+            <div class="text-sm text-slate-600 mt-1">
+              {% if c.website %}{{ c.website }}{% endif %}
+            </div>
+            {% if c.notes %}<div class="text-sm text-slate-600 mt-2">{{ c.notes }}</div>{% endif %}
+          </div>
+        {% else %}
+          <div class="p-4 text-slate-600">No companies yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-2xl shadow-sm p-4">
+      <div class="font-semibold mb-3">Add company</div>
+      <form method="post" action="/companies" class="space-y-2">
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="name" placeholder="Company name" required/>
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="website" placeholder="Website"/>
+        <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="3" placeholder="Notes"></textarea>
+        <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

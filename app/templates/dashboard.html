@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="flex items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold">Dashboard</h1>
+      <p class="text-slate-600">Quick overview + recent history.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+    {% for k,v in counts.items() %}
+      <div class="bg-white border rounded-2xl p-4 shadow-sm">
+        <div class="text-xs uppercase tracking-wide text-slate-500">{{ k.replace("_"," ") }}</div>
+        <div class="text-2xl font-semibold mt-1">{{ v }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <h2 class="text-lg font-semibold mt-10 mb-3">Recent activity</h2>
+  <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+    <div class="divide-y">
+      {% for a in recent %}
+      <div class="p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div class="text-sm font-medium">{{ a.summary }}</div>
+          <div class="text-xs text-slate-500">{{ a.ts }}</div>
+        </div>
+        <div class="text-xs text-slate-500 mt-1">{{ a.action }} • {{ a.entity_type }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</div>
+        {% if a.changes %}
+          <pre class="mt-2 text-xs bg-slate-50 border rounded-xl p-3 overflow-auto">{{ a.changes | tojson(indent=2) }}</pre>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

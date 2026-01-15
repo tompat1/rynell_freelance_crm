@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+  <div>
+    <h1 class="text-2xl font-semibold">History</h1>
+    <p class="text-slate-600">Everything you did, timestamped.</p>
+  </div>
+
+  <div class="bg-white border rounded-2xl shadow-sm overflow-hidden mt-6">
+    <div class="p-4 border-b font-semibold">Recent activity</div>
+    <div class="divide-y">
+      {% for a in items %}
+        <div class="p-4">
+          <div class="flex items-center justify-between gap-4">
+            <div class="text-sm font-medium">{{ a.summary }}</div>
+            <div class="text-xs text-slate-500">{{ a.ts }}</div>
+          </div>
+          <div class="text-xs text-slate-500 mt-1">{{ a.action }} • {{ a.entity_type }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</div>
+          {% if a.changes %}
+            <pre class="mt-2 text-xs bg-slate-50 border rounded-xl p-3 overflow-auto">{{ a.changes | tojson(indent=2) }}</pre>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="p-4 text-slate-600">No activity yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

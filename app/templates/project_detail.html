@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold">{{ project.name }}</h1>
+      <div class="text-slate-600 mt-1 text-sm">
+        Status: <span class="font-medium">{{ project.status }}</span>
+        {% if company %} • Company: <span class="font-medium">{{ company.name }}</span>{% endif %}
+        {% if contact %} • Contact: <span class="font-medium">{{ contact.first_name }} {{ contact.last_name }}</span>{% endif %}
+      </div>
+    </div>
+    <a href="/projects" class="text-sm underline text-slate-700">Back</a>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6 mt-6">
+    <div class="bg-white border rounded-2xl shadow-sm p-4 space-y-4">
+      <div>
+        <div class="font-semibold">Project status</div>
+        <form method="post" action="/projects/{{ project.id }}/status" class="mt-2 flex gap-2">
+          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="status">
+            {% for s in statuses %}
+              <option value="{{ s }}" {% if s==project.status %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm">Save</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="font-semibold">Add task</div>
+        <form method="post" action="/projects/{{ project.id }}/tasks" class="mt-2 space-y-2">
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="title" placeholder="Task title" required/>
+          <div class="grid grid-cols-2 gap-2">
+            <input class="border rounded-xl px-3 py-2 text-sm w-full" name="due_date" placeholder="Due (YYYY-MM-DD)"/>
+            <select class="border rounded-xl px-3 py-2 text-sm w-full" name="status">
+              <option>TODO</option><option>DOING</option><option>BLOCKED</option><option>DONE</option>
+            </select>
+          </div>
+          <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="2" placeholder="Notes"></textarea>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create task</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="font-semibold">Add calendar event</div>
+        <form method="post" action="/events" class="mt-2 space-y-2">
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="title" placeholder="Event title" required/>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="start" placeholder="Start (YYYY-MM-DDTHH:MM) e.g. 2026-01-15T10:00" required/>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="end" placeholder="End (optional)"/>
+          <input type="hidden" name="project_id" value="{{ project.id }}"/>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create event</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="md:col-span-2 space-y-6">
+      <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-4 border-b font-semibold">Tasks</div>
+        <div class="divide-y">
+          {% for t in tasks %}
+            <div class="p-4 flex items-start justify-between gap-4">
+              <div>
+                <div class="font-medium">{{ t.title }}</div>
+                <div class="text-xs text-slate-500 mt-1">Status: {{ t.status }}{% if t.due_date %} • due {{ t.due_date }}{% endif %}</div>
+                {% if t.notes %}<div class="text-sm text-slate-700 mt-2">{{ t.notes }}</div>{% endif %}
+              </div>
+              <form method="post" action="/tasks/{{ t.id }}/status" class="flex gap-2">
+                <select class="border rounded-xl px-2 py-1 text-xs" name="status">
+                  {% for s in ["TODO","DOING","BLOCKED","DONE"] %}
+                    <option value="{{ s }}" {% if s==t.status %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+                <button class="bg-slate-900 text-white rounded-xl px-2 py-1 text-xs">Set</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="p-4 text-slate-600">No tasks yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-4 border-b font-semibold">Assets</div>
+        <div class="p-4 grid md:grid-cols-3 gap-3">
+          {% for a in assets %}
+            <a class="border rounded-xl p-3 hover:bg-slate-50" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">
+              <div class="text-sm font-medium truncate">{{ a.filename }}</div>
+              <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes</div>
+              {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+            </a>
+          {% else %}
+            <div class="text-slate-600">No assets yet. Upload via Assets page.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-4 border-b font-semibold">Project history</div>
+        <div class="divide-y">
+          {% for a in activity %}
+            <div class="p-4">
+              <div class="flex items-center justify-between gap-4">
+                <div class="text-sm font-medium">{{ a.summary }}</div>
+                <div class="text-xs text-slate-500">{{ a.ts }}</div>
+              </div>
+              {% if a.changes %}
+                <pre class="mt-2 text-xs bg-slate-50 border rounded-xl p-3 overflow-auto">{{ a.changes | tojson(indent=2) }}</pre>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="p-4 text-slate-600">No history yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold">Calendar</h1>
+      <p class="text-slate-600">Events + task due dates (tasks appear as 📝).</p>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6 mt-6">
+    <div class="bg-white border rounded-2xl shadow-sm p-4">
+      <div class="font-semibold mb-3">Add event</div>
+      <form method="post" action="/events" class="space-y-2">
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="title" placeholder="Event title" required/>
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="start" placeholder="Start (YYYY-MM-DDTHH:MM)" required/>
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="end" placeholder="End (optional)"/>
+        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="project_id">
+          <option value="">Link to project</option>
+          {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="contact_id">
+          <option value="">Link to contact</option>
+          {% for c in contacts %}<option value="{{ c.id }}">{{ c.last_name }}, {{ c.first_name }}</option>{% endfor %}
+        </select>
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="location" placeholder="Location"/>
+        <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="2" placeholder="Notes"></textarea>
+        <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create</button>
+      </form>
+    </div>
+
+    <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm p-4">
+      <div id="calendar"></div>
+    </div>
+  </div>
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var el = document.getElementById('calendar');
+      var calendar = new FullCalendar.Calendar(el, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        events: '/api/calendar',
+        eventDidMount: function(info) {
+          const t = info.event.extendedProps.type;
+          if (t === 'task') {
+            info.el.title = 'Task due';
+          }
+        }
+      });
+      calendar.render();
+    });
+  </script>
+{% endblock %}

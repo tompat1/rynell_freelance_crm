@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+  <div>
+    <h1 class="text-2xl font-semibold">Assets</h1>
+    <p class="text-slate-600">Upload, tag, and link files to projects/contacts.</p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6 mt-6">
+    <div class="bg-white border rounded-2xl shadow-sm p-4">
+      <div class="font-semibold mb-3">Upload asset</div>
+      <form method="post" action="/assets/upload" enctype="multipart/form-data" class="space-y-2">
+        <input type="file" name="file" class="border rounded-xl px-3 py-2 text-sm w-full" required/>
+        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="tags" placeholder="Tags (comma separated)"/>
+        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="project_id">
+          <option value="">Link to project</option>
+          {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="contact_id">
+          <option value="">Link to contact</option>
+          {% for c in contacts %}<option value="{{ c.id }}">{{ c.last_name }}, {{ c.first_name }}</option>{% endfor %}
+        </select>
+        <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="2" placeholder="Notes"></textarea>
+        <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Upload</button>
+      </form>
+    </div>
+
+    <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-4 border-b font-semibold">Recent assets</div>
+      <div class="divide-y">
+        {% for a in assets %}
+          <div class="p-4 flex items-start justify-between gap-4">
+            <div>
+              <a class="font-medium underline" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">{{ a.filename }}</a>
+              <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes • uploaded {{ a.created_at }}</div>
+              {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+              {% if a.notes %}<div class="text-sm text-slate-700 mt-2">{{ a.notes }}</div>{% endif %}
+            </div>
+            <div class="text-xs text-slate-500">#{{ a.id }}</div>
+          </div>
+        {% else %}
+          <div class="p-4 text-slate-600">No assets yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

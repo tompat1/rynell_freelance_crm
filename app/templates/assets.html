@@ -26,33 +26,108 @@
     </div>
 
     <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b font-semibold">Recent assets</div>
-      <div class="divide-y">
-        {% for a in assets %}
-          <div class="p-4 flex items-start gap-4">
-            <div class="h-20 w-20 rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
-              {% if a.mime_type and a.mime_type.startswith("image/") %}
-                <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
-              {% else %}
-                <span class="uppercase">{{ a.filename.split('.')[-1] if '.' in a.filename else 'file' }}</span>
-              {% endif %}
-            </div>
-            <div class="flex-1">
-              <div class="flex items-start justify-between gap-4">
-                <div>
-                  <a class="font-medium underline" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">{{ a.filename }}</a>
-                  <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes • uploaded {{ a.created_at }}</div>
-                </div>
-                <div class="text-xs text-slate-500">#{{ a.id }}</div>
-              </div>
-              {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
-              {% if a.notes %}<div class="text-sm text-slate-700 mt-2">{{ a.notes }}</div>{% endif %}
-            </div>
+      <div class="p-4 border-b">
+        <div class="flex items-center justify-between gap-4">
+          <div class="font-semibold">Recent assets</div>
+          <div class="text-xs text-slate-500">{{ assets|length }} shown</div>
+        </div>
+        <form method="get" action="/assets" class="mt-3 grid md:grid-cols-6 gap-2 items-end">
+          <input type="hidden" name="view" value="{{ view }}"/>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full md:col-span-2" name="q" value="{{ q }}" placeholder="Search filename, tags, notes"/>
+          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="project_id">
+            <option value="">All projects</option>
+            {% for p in projects %}
+              <option value="{{ p.id }}" {% if project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="contact_id">
+            <option value="">All contacts</option>
+            {% for c in contacts %}
+              <option value="{{ c.id }}" {% if contact_id == c.id %}selected{% endif %}>{{ c.last_name }}, {{ c.first_name }}</option>
+            {% endfor %}
+          </select>
+          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="file_type">
+            <option value="">All types</option>
+            {% for t in ["image","video","document","other"] %}
+              <option value="{{ t }}" {% if file_type == t %}selected{% endif %}>{{ t|capitalize }}</option>
+            {% endfor %}
+          </select>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Filter</button>
+        </form>
+        <div class="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+          <div class="flex items-center gap-2">
+            <span>View</span>
+            <a class="px-2 py-1 rounded-lg border {% if view == 'thumbs' %}bg-slate-900 text-white border-slate-900{% else %}text-slate-600{% endif %}"
+               href="/assets?view=thumbs&q={{ q|urlencode }}&project_id={{ project_id }}&contact_id={{ contact_id }}&file_type={{ file_type }}">
+              Thumbs
+            </a>
+            <a class="px-2 py-1 rounded-lg border {% if view == 'list' %}bg-slate-900 text-white border-slate-900{% else %}text-slate-600{% endif %}"
+               href="/assets?view=list&q={{ q|urlencode }}&project_id={{ project_id }}&contact_id={{ contact_id }}&file_type={{ file_type }}">
+              List
+            </a>
           </div>
-        {% else %}
-          <div class="p-4 text-slate-600">No assets yet.</div>
-        {% endfor %}
+          {% if request.query_params.get("duplicate") %}
+            <div class="text-amber-600">Duplicates were skipped during upload.</div>
+          {% endif %}
+        </div>
       </div>
+      {% if view == "list" %}
+        <div class="divide-y">
+          {% for a in assets %}
+            <div class="p-4 flex items-start gap-4">
+              <div class="h-20 w-20 rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+                {% if a.mime_type and a.mime_type.startswith("image/") %}
+                  <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
+                {% else %}
+                  <span class="uppercase">{{ a.filename.split('.')[-1] if '.' in a.filename else 'file' }}</span>
+                {% endif %}
+              </div>
+              <div class="flex-1">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <a class="font-medium underline" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">{{ a.filename }}</a>
+                    <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes • uploaded {{ a.created_at }}</div>
+                  </div>
+                  <div class="text-xs text-slate-500">#{{ a.id }}</div>
+                </div>
+                {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+                {% if a.notes %}<div class="text-sm text-slate-700 mt-2">{{ a.notes }}</div>{% endif %}
+                <form method="post" action="/assets/{{ a.id }}/delete" class="mt-3" onsubmit="return confirm('Delete this asset?');">
+                  <input type="hidden" name="next_url" value="{{ current_url }}"/>
+                  <button class="text-xs text-red-600">Delete</button>
+                </form>
+              </div>
+            </div>
+          {% else %}
+            <div class="p-4 text-slate-600">No assets yet.</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {% for a in assets %}
+            <div class="border rounded-xl p-3">
+              <a href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">
+                <div class="h-28 w-full rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+                  {% if a.mime_type and a.mime_type.startswith("image/") %}
+                    <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
+                  {% else %}
+                    <span class="uppercase">{{ a.filename.split('.')[-1] if '.' in a.filename else 'file' }}</span>
+                  {% endif %}
+                </div>
+                <div class="text-sm font-medium truncate mt-2">{{ a.filename }}</div>
+                <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes</div>
+                {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+              </a>
+              <form method="post" action="/assets/{{ a.id }}/delete" class="mt-3" onsubmit="return confirm('Delete this asset?');">
+                <input type="hidden" name="next_url" value="{{ current_url }}"/>
+                <button class="text-xs text-red-600">Delete</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="text-slate-600">No assets yet.</div>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
   </div>
 {% endblock %}

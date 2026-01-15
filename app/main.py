@@ -1,5 +1,5 @@
 from __future__ import annotations
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 import mimetypes
 import os
@@ -527,11 +527,61 @@ def calendar_feed(session=Depends(session_dep)):
 
 # ---------- Assets ----------
 @app.get("/assets", response_class=HTMLResponse)
-def assets_list(request: Request, session=Depends(session_dep)):
-    assets = session.exec(select(Asset).order_by(Asset.created_at.desc()).limit(200)).all()
+def assets_list(
+    request: Request,
+    q: str = "",
+    project_id: Optional[str] = "",
+    contact_id: Optional[str] = "",
+    file_type: str = "",
+    view: str = "thumbs",
+    session=Depends(session_dep),
+):
+    stmt = select(Asset)
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(or_(Asset.filename.like(like), Asset.tags.like(like), Asset.notes.like(like)))
+    project_id_value = parse_optional_int(project_id)
+    if project_id_value:
+        stmt = stmt.where(Asset.project_id == project_id_value)
+    contact_id_value = parse_optional_int(contact_id)
+    if contact_id_value:
+        stmt = stmt.where(Asset.contact_id == contact_id_value)
+    if file_type == "image":
+        stmt = stmt.where(Asset.mime_type.like("image/%"))
+    elif file_type == "video":
+        stmt = stmt.where(Asset.mime_type.like("video/%"))
+    elif file_type == "document":
+        stmt = stmt.where(Asset.mime_type.like("application/%"))
+    elif file_type == "other":
+        stmt = stmt.where(
+            or_(
+                Asset.mime_type.is_(None),
+                and_(
+                    ~Asset.mime_type.like("image/%"),
+                    ~Asset.mime_type.like("video/%"),
+                    ~Asset.mime_type.like("application/%"),
+                ),
+            )
+        )
+    assets = session.exec(stmt.order_by(Asset.created_at.desc()).limit(200)).all()
     projects = session.exec(select(Project).order_by(Project.name)).all()
     contacts = session.exec(select(Contact).order_by(Contact.last_name, Contact.first_name)).all()
-    return templates.TemplateResponse("assets.html", {"request": request, "assets": assets, "projects": projects, "contacts": contacts})
+    view_value = view if view in {"thumbs", "list"} else "thumbs"
+    return templates.TemplateResponse(
+        "assets.html",
+        {
+            "request": request,
+            "assets": assets,
+            "projects": projects,
+            "contacts": contacts,
+            "q": q,
+            "project_id": project_id_value or "",
+            "contact_id": contact_id_value or "",
+            "file_type": file_type,
+            "view": view_value,
+            "current_url": str(request.url),
+        },
+    )
 
 async def save_asset_upload(
     file: UploadFile,
@@ -557,6 +607,16 @@ async def save_asset_upload(
     ext = Path(safe_name).suffix.lower()
     if mime not in ALLOWED_ASSET_MIME_TYPES and ext not in ALLOWED_ASSET_EXTENSIONS:
         raise HTTPException(400, "Unsupported file type")
+    size_bytes = len(content)
+    existing = session.exec(
+        select(Asset).where(
+            Asset.filename == safe_name,
+            Asset.size_bytes == size_bytes,
+            Asset.mime_type == mime,
+        )
+    ).first()
+    if existing:
+        return None
 
     stored_path.write_bytes(content)
 
@@ -564,7 +624,7 @@ async def save_asset_upload(
         filename=safe_name,
         stored_path=str(stored_name),
         mime_type=mime,
-        size_bytes=len(content),
+        size_bytes=size_bytes,
         tags=(tags.strip() or None),
         project_id=project_id_value,
         contact_id=contact_id_value,
@@ -600,7 +660,7 @@ async def assets_upload(
         for file in files
     ]
     if not any(uploads):
-        raise HTTPException(400, "No files uploaded")
+        return RedirectResponse(url="/assets?duplicate=1", status_code=303)
     return RedirectResponse(url="/assets", status_code=303)
 
 @app.post("/projects/{project_id}/assets/upload")
@@ -626,8 +686,21 @@ async def project_assets_upload(
         for file in files
     ]
     if not any(uploads):
-        raise HTTPException(400, "No files uploaded")
+        return RedirectResponse(url=f"/projects/{project_id}?duplicate=1", status_code=303)
     return RedirectResponse(url=f"/projects/{project_id}", status_code=303)
+
+@app.post("/assets/{asset_id}/delete")
+def assets_delete(asset_id: int, next_url: str = Form("/assets"), session=Depends(session_dep)):
+    asset = session.get(Asset, asset_id)
+    if not asset:
+        raise HTTPException(404, "Asset not found")
+    stored_path = UPLOAD_DIR / asset.stored_path
+    if stored_path.exists():
+        stored_path.unlink()
+    session.delete(asset)
+    session.commit()
+    add_activity(session, "DELETE", "Asset", asset_id, f"Deleted asset: {asset.filename}")
+    return RedirectResponse(url=next_url or "/assets", status_code=303)
 
 # ---------- Activity ----------
 @app.get("/activity", response_class=HTMLResponse)

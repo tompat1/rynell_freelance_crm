@@ -208,7 +208,14 @@ async def contacts_import(file: Optional[UploadFile] = File(None), session=Depen
     for row in reader:
         first_name = get_value(row, "first_name", "first name", "first")
         last_name = get_value(row, "last_name", "last name", "last")
-        if not first_name or not last_name:
+        full_name = get_value(row, "full_name", "full name", "name", "magazine", "publication")
+        if full_name and (not first_name or not last_name):
+            name_parts = full_name.split()
+            if not first_name:
+                first_name = name_parts[0] if name_parts else full_name
+            if not last_name:
+                last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+        if not first_name and not last_name:
             skipped += 1
             continue
         email = get_value(row, "email", "email_address", "email address")

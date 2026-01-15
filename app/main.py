@@ -353,35 +353,50 @@ def contacts_update(
         add_activity(session, "UPDATE", "Contact", c.id, f"Updated contact: {c.first_name} {c.last_name}", changes=changes)
     return RedirectResponse(url=f"/contacts/{c.id}", status_code=303)
 
-@app.post("/contacts/{contact_id}/delete")
-def contacts_delete(contact_id: int, next_url: str = Form("/contacts"), session=Depends(session_dep)):
-    contact = session.get(Contact, contact_id)
-    if not contact:
-        raise HTTPException(404, "Contact not found")
+def delete_contact(session, contact: Contact) -> None:
     full_name = f"{contact.first_name} {contact.last_name}"
-    leads = session.exec(select(Lead).where(Lead.contact_id == contact_id)).all()
+    leads = session.exec(select(Lead).where(Lead.contact_id == contact.id)).all()
     for lead in leads:
         lead.contact_id = None
         lead.updated_at = now_utc()
         session.add(lead)
-    projects = session.exec(select(Project).where(Project.contact_id == contact_id)).all()
+    projects = session.exec(select(Project).where(Project.contact_id == contact.id)).all()
     for project in projects:
         project.contact_id = None
         project.updated_at = now_utc()
         session.add(project)
-    assets = session.exec(select(Asset).where(Asset.contact_id == contact_id)).all()
+    assets = session.exec(select(Asset).where(Asset.contact_id == contact.id)).all()
     for asset in assets:
         asset.contact_id = None
         session.add(asset)
-    events = session.exec(select(Event).where(Event.contact_id == contact_id)).all()
+    events = session.exec(select(Event).where(Event.contact_id == contact.id)).all()
     for event in events:
         event.contact_id = None
         event.updated_at = now_utc()
         session.add(event)
     session.delete(contact)
     session.commit()
-    add_activity(session, "DELETE", "Contact", contact_id, f"Deleted contact: {full_name}")
+    add_activity(session, "DELETE", "Contact", contact.id, f"Deleted contact: {full_name}")
+
+@app.post("/contacts/{contact_id}/delete")
+def contacts_delete(contact_id: int, next_url: str = Form("/contacts"), session=Depends(session_dep)):
+    contact = session.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+    delete_contact(session, contact)
     return RedirectResponse(url=next_url, status_code=303)
+
+@app.post("/contacts/bulk-delete")
+def contacts_bulk_delete(
+    contact_ids: list[int] = Form([]),
+    session=Depends(session_dep),
+):
+    if not contact_ids:
+        return RedirectResponse(url="/contacts?error=missing_selection", status_code=303)
+    contacts = session.exec(select(Contact).where(Contact.id.in_(contact_ids))).all()
+    for contact in contacts:
+        delete_contact(session, contact)
+    return RedirectResponse(url="/contacts", status_code=303)
 
 # ---------- Companies ----------
 @app.get("/companies", response_class=HTMLResponse)

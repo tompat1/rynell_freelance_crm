@@ -24,13 +24,27 @@
       Please choose a CSV file to import.
     </div>
   {% endif %}
+  {% if error == "missing_selection" %}
+    <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+      Select at least one contact to delete.
+    </div>
+  {% endif %}
 
   <div class="grid md:grid-cols-3 gap-6 mt-6">
     <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b font-semibold">All contacts</div>
+      <div class="p-4 border-b flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <input id="select-all-contacts" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+          <label for="select-all-contacts" class="font-semibold">All contacts</label>
+        </div>
+        <form id="bulk-delete-form" method="post" action="/contacts/bulk-delete" onsubmit="return confirm('Delete selected contacts?');">
+          <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:text-rose-300" disabled>Delete selected</button>
+        </form>
+      </div>
       <div class="divide-y">
         {% for c in contacts %}
           <div class="flex items-start justify-between gap-4 p-4 hover:bg-slate-50">
+            <input form="bulk-delete-form" type="checkbox" name="contact_ids" value="{{ c.id }}" class="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 contact-select"/>
             <a href="/contacts/{{ c.id }}" class="flex-1">
               <div class="flex items-center justify-between">
                 <div class="font-medium">{{ c.first_name }} {{ c.last_name }}</div>
@@ -84,4 +98,31 @@
       </div>
     </div>
   </div>
+
+  <script>
+    const selectAll = document.getElementById("select-all-contacts");
+    const bulkDeleteButton = document.querySelector("#bulk-delete-form button");
+    const contactCheckboxes = Array.from(document.querySelectorAll(".contact-select"));
+
+    const updateBulkDeleteState = () => {
+      const anyChecked = contactCheckboxes.some((checkbox) => checkbox.checked);
+      bulkDeleteButton.disabled = !anyChecked;
+      if (contactCheckboxes.length) {
+        const allChecked = contactCheckboxes.every((checkbox) => checkbox.checked);
+        selectAll.checked = allChecked;
+        selectAll.indeterminate = !allChecked && anyChecked;
+      }
+    };
+
+    selectAll.addEventListener("change", (event) => {
+      contactCheckboxes.forEach((checkbox) => {
+        checkbox.checked = event.target.checked;
+      });
+      updateBulkDeleteState();
+    });
+
+    contactCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateBulkDeleteState);
+    });
+  </script>
 {% endblock %}

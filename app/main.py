@@ -22,6 +22,35 @@ app = FastAPI(title="Freelance CRM (MVP)")
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+ALLOWED_ASSET_MIME_TYPES = {
+    "application/pdf",
+    "application/postscript",
+    "application/vnd.adobe.illustrator",
+    "application/vnd.sketch",
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/svg+xml",
+    "image/webp",
+    "video/mp4",
+}
+ALLOWED_ASSET_EXTENSIONS = {
+    ".ai",
+    ".eps",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp4",
+    ".pdf",
+    ".png",
+    ".psd",
+    ".sketch",
+    ".svg",
+    ".webp",
+}
+
 UPLOAD_DIR = DATA_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -300,9 +329,24 @@ def projects_create(
 ):
     if status not in PROJECT_STATUSES:
         status = "ACTIVE"
-    sd = datetime.fromisoformat(start_date) if start_date.strip() else None
-    ed = datetime.fromisoformat(end_date) if end_date.strip() else None
-    b = float(budget) if budget.strip() else None
+    sd = None
+    if start_date.strip():
+        try:
+            sd = datetime.fromisoformat(start_date)
+        except ValueError:
+            sd = None
+    ed = None
+    if end_date.strip():
+        try:
+            ed = datetime.fromisoformat(end_date)
+        except ValueError:
+            ed = None
+    b = None
+    if budget.strip():
+        try:
+            b = float(budget)
+        except ValueError:
+            b = None
     p = Project(
         name=name.strip(),
         status=status,
@@ -497,9 +541,16 @@ async def assets_upload(
     stored_path = UPLOAD_DIR / stored_name
 
     content = await file.read()
-    stored_path.write_bytes(content)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
 
     mime = file.content_type or mimetypes.guess_type(safe_name)[0]
+    ext = Path(safe_name).suffix.lower()
+    if mime not in ALLOWED_ASSET_MIME_TYPES and ext not in ALLOWED_ASSET_EXTENSIONS:
+        raise HTTPException(400, "Unsupported file type")
+
+    stored_path.write_bytes(content)
+
     a = Asset(
         filename=safe_name,
         stored_path=str(stored_name),

@@ -75,6 +75,16 @@ def parse_optional_float(value: str) -> Optional[float]:
     except ValueError:
         return None
 
+def parse_optional_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
 def add_activity(session, action: str, entity_type: str, entity_id: Optional[int], summary: str, changes: Optional[dict] = None):
     session.add(Activity(action=action, entity_type=entity_type, entity_id=entity_id, summary=summary, changes=changes))
     session.commit()
@@ -125,17 +135,18 @@ def contacts_create(
     email: str = Form(""),
     phone: str = Form(""),
     role: str = Form(""),
-    company_id: Optional[int] = Form(None),
+    company_id: Optional[str] = Form(""),
     notes: str = Form(""),
     session=Depends(session_dep),
 ):
+    company_id_value = parse_optional_int(company_id)
     c = Contact(
         first_name=first_name.strip(),
         last_name=last_name.strip(),
         email=(email.strip() or None),
         phone=(phone.strip() or None),
         role=(role.strip() or None),
-        company_id=company_id,
+        company_id=company_id_value,
         notes=(notes.strip() or None),
         created_at=now_utc(),
         updated_at=now_utc(),
@@ -176,7 +187,7 @@ def contacts_update(
     email: str = Form(""),
     phone: str = Form(""),
     role: str = Form(""),
-    company_id: Optional[int] = Form(None),
+    company_id: Optional[str] = Form(""),
     notes: str = Form(""),
     session=Depends(session_dep),
 ):
@@ -184,12 +195,13 @@ def contacts_update(
     if not c:
         raise HTTPException(404, "Contact not found")
     before = {"first_name": c.first_name, "last_name": c.last_name, "email": c.email, "phone": c.phone, "role": c.role, "company_id": c.company_id, "notes": c.notes}
+    company_id_value = parse_optional_int(company_id)
     c.first_name = first_name.strip()
     c.last_name = last_name.strip()
     c.email = (email.strip() or None)
     c.phone = (phone.strip() or None)
     c.role = (role.strip() or None)
-    c.company_id = company_id
+    c.company_id = company_id_value
     c.notes = (notes.strip() or None)
     c.updated_at = now_utc()
     session.add(c)
@@ -239,8 +251,8 @@ def leads_create(
     status: str = Form("NEW"),
     source: str = Form(""),
     value_estimate: str = Form(""),
-    company_id: Optional[int] = Form(None),
-    contact_id: Optional[int] = Form(None),
+    company_id: Optional[str] = Form(""),
+    contact_id: Optional[str] = Form(""),
     next_step: str = Form(""),
     due_date: str = Form(""),
     notes: str = Form(""),
@@ -250,13 +262,15 @@ def leads_create(
         status = "NEW"
     ve = parse_optional_float(value_estimate)
     dd = parse_optional_datetime(due_date)
+    company_id_value = parse_optional_int(company_id)
+    contact_id_value = parse_optional_int(contact_id)
     lead = Lead(
         title=title.strip(),
         status=status,
         source=(source.strip() or None),
         value_estimate=ve,
-        company_id=company_id,
-        contact_id=contact_id,
+        company_id=company_id_value,
+        contact_id=contact_id_value,
         next_step=(next_step.strip() or None),
         due_date=dd,
         notes=(notes.strip() or None),
@@ -325,8 +339,8 @@ def projects_list(request: Request, session=Depends(session_dep)):
 def projects_create(
     name: str = Form(...),
     status: str = Form("ACTIVE"),
-    company_id: Optional[int] = Form(None),
-    contact_id: Optional[int] = Form(None),
+    company_id: Optional[str] = Form(""),
+    contact_id: Optional[str] = Form(""),
     start_date: str = Form(""),
     end_date: str = Form(""),
     budget: str = Form(""),
@@ -338,11 +352,13 @@ def projects_create(
     sd = parse_optional_datetime(start_date)
     ed = parse_optional_datetime(end_date)
     b = parse_optional_float(budget)
+    company_id_value = parse_optional_int(company_id)
+    contact_id_value = parse_optional_int(contact_id)
     p = Project(
         name=name.strip(),
         status=status,
-        company_id=company_id,
-        contact_id=contact_id,
+        company_id=company_id_value,
+        contact_id=contact_id_value,
         start_date=sd,
         end_date=ed,
         budget=b,
@@ -447,8 +463,8 @@ def events_create(
     start: str = Form(...),
     end: str = Form(""),
     all_day: Optional[bool] = Form(False),
-    project_id: Optional[int] = Form(None),
-    contact_id: Optional[int] = Form(None),
+    project_id: Optional[str] = Form(""),
+    contact_id: Optional[str] = Form(""),
     location: str = Form(""),
     notes: str = Form(""),
     session=Depends(session_dep),
@@ -463,13 +479,15 @@ def events_create(
             end_dt = datetime.fromisoformat(end)
         except ValueError:
             end_dt = None
+    project_id_value = parse_optional_int(project_id)
+    contact_id_value = parse_optional_int(contact_id)
     e = Event(
         title=title.strip(),
         start=start_dt,
         end=end_dt,
         all_day=bool(all_day),
-        project_id=project_id,
-        contact_id=contact_id,
+        project_id=project_id_value,
+        contact_id=contact_id_value,
         location=(location.strip() or None),
         notes=(notes.strip() or None),
         created_at=now_utc(),
@@ -519,8 +537,8 @@ def assets_list(request: Request, session=Depends(session_dep)):
 async def assets_upload(
     file: UploadFile = File(...),
     tags: str = Form(""),
-    project_id: Optional[int] = Form(None),
-    contact_id: Optional[int] = Form(None),
+    project_id: Optional[str] = Form(""),
+    contact_id: Optional[str] = Form(""),
     notes: str = Form(""),
     session=Depends(session_dep),
 ):
@@ -542,14 +560,16 @@ async def assets_upload(
 
     stored_path.write_bytes(content)
 
+    project_id_value = parse_optional_int(project_id)
+    contact_id_value = parse_optional_int(contact_id)
     a = Asset(
         filename=safe_name,
         stored_path=str(stored_name),
         mime_type=mime,
         size_bytes=len(content),
         tags=(tags.strip() or None),
-        project_id=project_id,
-        contact_id=contact_id,
+        project_id=project_id_value,
+        contact_id=contact_id_value,
         notes=(notes.strip() or None),
         created_at=now_utc(),
     )

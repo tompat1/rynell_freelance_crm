@@ -11,6 +11,15 @@
     </form>
   </div>
 
+  {% if imported or skipped %}
+    <div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+      Imported {{ imported or 0 }} contacts.
+      {% if skipped %}
+        Skipped {{ skipped }} rows missing a name or matching an existing email.
+      {% endif %}
+    </div>
+  {% endif %}
+
   <div class="grid md:grid-cols-3 gap-6 mt-6">
     <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
       <div class="p-4 border-b font-semibold">All contacts</div>
@@ -33,25 +42,36 @@
       </div>
     </div>
 
-    <div class="bg-white border rounded-2xl shadow-sm p-4">
-      <div class="font-semibold mb-3">Add contact</div>
-      <form method="post" action="/contacts" class="space-y-2">
-        <div class="grid grid-cols-2 gap-2">
-          <input class="border rounded-xl px-3 py-2 text-sm" name="first_name" placeholder="First name" required/>
-          <input class="border rounded-xl px-3 py-2 text-sm" name="last_name" placeholder="Last name" required/>
-        </div>
-        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="email" placeholder="Email"/>
-        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="phone" placeholder="Phone"/>
-        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="role" placeholder="Role / Title"/>
-        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="company_id">
-          <option value="">Company (optional)</option>
-          {% for co in companies %}
-            <option value="{{ co.id }}">{{ co.name }}</option>
-          {% endfor %}
-        </select>
-        <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="3" placeholder="Notes"></textarea>
-        <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create</button>
-      </form>
+    <div class="space-y-6">
+      <div class="bg-white border rounded-2xl shadow-sm p-4">
+        <div class="font-semibold mb-3">Add contact</div>
+        <form method="post" action="/contacts" class="space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <input class="border rounded-xl px-3 py-2 text-sm" name="first_name" placeholder="First name" required/>
+            <input class="border rounded-xl px-3 py-2 text-sm" name="last_name" placeholder="Last name" required/>
+          </div>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="email" placeholder="Email"/>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="phone" placeholder="Phone"/>
+          <input class="border rounded-xl px-3 py-2 text-sm w-full" name="role" placeholder="Role / Title"/>
+          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="company_id">
+            <option value="">Company (optional)</option>
+            {% for co in companies %}
+              <option value="{{ co.id }}">{{ co.name }}</option>
+            {% endfor %}
+          </select>
+          <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="3" placeholder="Notes"></textarea>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create</button>
+        </form>
+      </div>
+
+      <div class="bg-white border rounded-2xl shadow-sm p-4">
+        <div class="font-semibold mb-2">Import contacts (CSV)</div>
+        <p class="text-xs text-slate-500 mb-3">Use headers like first_name, last_name, email, phone, role, company, notes.</p>
+        <form method="post" action="/contacts/import" enctype="multipart/form-data" class="space-y-3">
+          <input type="file" name="file" accept=".csv,text/csv" class="block w-full text-sm text-slate-600"/>
+          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Import CSV</button>
+        </form>
+      </div>
     </div>
   </div>
 {% endblock %}

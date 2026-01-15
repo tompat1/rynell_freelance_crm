@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Logs
+*.log
+
+# Database / local data (CRM)
+app/data/crm.db
+app/data/*.db
+app/data/uploads/
+app/data/uploads/**
+
+# (Optional) If you add backups/dumps later
+*.sqlite
+*.sqlite3
+*.db-journal

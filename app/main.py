@@ -130,7 +130,6 @@ def contacts_list(request: Request, q: str = "", session=Depends(session_dep)):
     companies = session.exec(select(Company).order_by(Company.name)).all()
     imported = request.query_params.get("imported")
     skipped = request.query_params.get("skipped")
-    import_error = request.query_params.get("import_error")
     return templates.TemplateResponse(
         "contacts.html",
         {
@@ -140,7 +139,6 @@ def contacts_list(request: Request, q: str = "", session=Depends(session_dep)):
             "q": q,
             "imported": imported,
             "skipped": skipped,
-            "import_error": import_error,
         },
     )
 
@@ -174,9 +172,9 @@ def contacts_create(
     return RedirectResponse(url=f"/contacts/{c.id}", status_code=303)
 
 @app.post("/contacts/import")
-async def contacts_import(file: Optional[UploadFile] = File(None), session=Depends(session_dep)):
-    if not file or not file.filename:
-        return RedirectResponse(url="/contacts?import_error=missing", status_code=303)
+async def contacts_import(file: UploadFile = File(...), session=Depends(session_dep)):
+    if not file.filename:
+        raise HTTPException(400, "Missing CSV file")
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")

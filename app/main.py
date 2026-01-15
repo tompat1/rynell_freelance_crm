@@ -5,6 +5,7 @@ import csv
 import io
 import mimetypes
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -90,6 +91,30 @@ def parse_optional_int(value: Optional[str]) -> Optional[int]:
 def add_activity(session, action: str, entity_type: str, entity_id: Optional[int], summary: str, changes: Optional[dict] = None):
     session.add(Activity(action=action, entity_type=entity_type, entity_id=entity_id, summary=summary, changes=changes))
     session.commit()
+
+def extract_emails(raw: str) -> list[str]:
+    if not raw:
+        return []
+    email_regex = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    emails: list[str] = []
+    for candidate in re.split(r"[;\s,]+", raw):
+        cleaned = candidate.strip()
+        if not cleaned:
+            continue
+        if cleaned.lower().startswith("mailto:"):
+            cleaned = cleaned[7:]
+        if email_regex.match(cleaned):
+            emails.append(cleaned)
+    return emails
+
+def name_from_email(email: str) -> tuple[str, str]:
+    local = email.split("@", 1)[0]
+    parts = [part for part in re.split(r"[._\-]+", local) if part]
+    if not parts:
+        return "", ""
+    first = parts[0].replace("+", " ").title()
+    last = " ".join(part.replace("+", " ").title() for part in parts[1:])
+    return first, last
 
 @app.on_event("startup")
 def on_startup():
@@ -209,25 +234,25 @@ async def contacts_import(file: Optional[UploadFile] = File(None), session=Depen
         first_name = get_value(row, "first_name", "first name", "first")
         last_name = get_value(row, "last_name", "last name", "last")
         full_name = get_value(row, "full_name", "full name", "name", "magazine", "publication")
+        email = get_value(row, "email", "email_address", "email address")
+        emails_value = get_value(row, "emails", "email_list", "email list")
+        emails = [email] if email else extract_emails(emails_value)
         if full_name and (not first_name or not last_name):
             name_parts = full_name.split()
             if not first_name:
                 first_name = name_parts[0] if name_parts else full_name
             if not last_name:
                 last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-        if not first_name and not last_name:
+        if not emails and not first_name and not last_name:
             skipped += 1
             continue
-        email = get_value(row, "email", "email_address", "email address")
-        if email:
-            existing = session.exec(select(Contact).where(Contact.email == email)).first()
-            if existing:
-                skipped += 1
-                continue
         phone = get_value(row, "phone", "phone_number", "phone number")
         role = get_value(row, "role", "title")
         notes = get_value(row, "notes", "note")
+        site_name = get_value(row, "site", "website", "url")
         company_name = get_value(row, "company", "company_name", "company name")
+        if not company_name and site_name:
+            company_name = site_name
         company_id = None
         if company_name:
             company = session.exec(select(Company).where(func.lower(Company.name) == company_name.lower())).first()
@@ -238,22 +263,38 @@ async def contacts_import(file: Optional[UploadFile] = File(None), session=Depen
                 session.refresh(company)
             company_id = company.id
 
-        c = Contact(
-            first_name=first_name,
-            last_name=last_name,
-            email=email or None,
-            phone=phone or None,
-            role=role or None,
-            company_id=company_id,
-            notes=notes or None,
-            created_at=now_utc(),
-            updated_at=now_utc(),
-        )
-        session.add(c)
-        session.commit()
-        session.refresh(c)
-        add_activity(session, "CREATE", "Contact", c.id, f"Imported contact: {c.first_name} {c.last_name}")
-        imported += 1
+        if not emails:
+            emails = [""]
+
+        for contact_email in emails:
+            contact_first = first_name
+            contact_last = last_name
+            if (not contact_first and not contact_last) and contact_email:
+                contact_first, contact_last = name_from_email(contact_email)
+            if not contact_first and not contact_last:
+                skipped += 1
+                continue
+            if contact_email:
+                existing = session.exec(select(Contact).where(Contact.email == contact_email)).first()
+                if existing:
+                    skipped += 1
+                    continue
+            c = Contact(
+                first_name=contact_first,
+                last_name=contact_last,
+                email=contact_email or None,
+                phone=phone or None,
+                role=role or None,
+                company_id=company_id,
+                notes=notes or None,
+                created_at=now_utc(),
+                updated_at=now_utc(),
+            )
+            session.add(c)
+            session.commit()
+            session.refresh(c)
+            add_activity(session, "CREATE", "Contact", c.id, f"Imported contact: {c.first_name} {c.last_name}")
+            imported += 1
 
     return RedirectResponse(url=f"/contacts?imported={imported}&skipped={skipped}", status_code=303)
 

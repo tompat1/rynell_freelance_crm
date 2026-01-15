@@ -59,6 +59,22 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 def now_utc() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)  # store naive UTC in SQLite
 
+def parse_optional_datetime(value: str) -> Optional[datetime]:
+    if not value or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+def parse_optional_float(value: str) -> Optional[float]:
+    if not value or not value.strip():
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
 def add_activity(session, action: str, entity_type: str, entity_id: Optional[int], summary: str, changes: Optional[dict] = None):
     session.add(Activity(action=action, entity_type=entity_type, entity_id=entity_id, summary=summary, changes=changes))
     session.commit()
@@ -232,18 +248,8 @@ def leads_create(
 ):
     if status not in LEAD_STATUSES:
         status = "NEW"
-    ve = None
-    if value_estimate.strip():
-        try:
-            ve = float(value_estimate)
-        except ValueError:
-            ve = None
-    dd = None
-    if due_date.strip():
-        try:
-            dd = datetime.fromisoformat(due_date)
-        except ValueError:
-            dd = None
+    ve = parse_optional_float(value_estimate)
+    dd = parse_optional_datetime(due_date)
     lead = Lead(
         title=title.strip(),
         status=status,
@@ -329,24 +335,9 @@ def projects_create(
 ):
     if status not in PROJECT_STATUSES:
         status = "ACTIVE"
-    sd = None
-    if start_date.strip():
-        try:
-            sd = datetime.fromisoformat(start_date)
-        except ValueError:
-            sd = None
-    ed = None
-    if end_date.strip():
-        try:
-            ed = datetime.fromisoformat(end_date)
-        except ValueError:
-            ed = None
-    b = None
-    if budget.strip():
-        try:
-            b = float(budget)
-        except ValueError:
-            b = None
+    sd = parse_optional_datetime(start_date)
+    ed = parse_optional_datetime(end_date)
+    b = parse_optional_float(budget)
     p = Project(
         name=name.strip(),
         status=status,
@@ -418,7 +409,7 @@ def tasks_create(
 ):
     if status not in TASK_STATUSES:
         status = "TODO"
-    dd = datetime.fromisoformat(due_date) if due_date.strip() else None
+    dd = parse_optional_datetime(due_date)
     t = Task(project_id=project_id, title=title.strip(), status=status, due_date=dd, notes=(notes.strip() or None),
              created_at=now_utc(), updated_at=now_utc())
     session.add(t)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 from sqlalchemy import and_, func, or_
 
+import csv
+import io
 import mimetypes
 import os
 import uuid
@@ -126,7 +128,19 @@ def contacts_list(request: Request, q: str = "", session=Depends(session_dep)):
         stmt = stmt.where((Contact.first_name.like(like)) | (Contact.last_name.like(like)) | (Contact.email.like(like)))
     contacts = session.exec(stmt.order_by(Contact.last_name, Contact.first_name)).all()
     companies = session.exec(select(Company).order_by(Company.name)).all()
-    return templates.TemplateResponse("contacts.html", {"request": request, "contacts": contacts, "companies": companies, "q": q})
+    imported = request.query_params.get("imported")
+    skipped = request.query_params.get("skipped")
+    return templates.TemplateResponse(
+        "contacts.html",
+        {
+            "request": request,
+            "contacts": contacts,
+            "companies": companies,
+            "q": q,
+            "imported": imported,
+            "skipped": skipped,
+        },
+    )
 
 @app.post("/contacts")
 def contacts_create(
@@ -156,6 +170,83 @@ def contacts_create(
     session.refresh(c)
     add_activity(session, "CREATE", "Contact", c.id, f"Created contact: {c.first_name} {c.last_name}")
     return RedirectResponse(url=f"/contacts/{c.id}", status_code=303)
+
+@app.post("/contacts/import")
+async def contacts_import(file: UploadFile = File(...), session=Depends(session_dep)):
+    if not file.filename:
+        raise HTTPException(400, "Missing CSV file")
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV file is missing a header row")
+    fieldnames = {name.lower().strip(): name for name in reader.fieldnames if name}
+
+    def get_value(row: dict, *keys: str) -> str:
+        for key in keys:
+            column = fieldnames.get(key)
+            if not column:
+                continue
+            value = row.get(column)
+            if value is None:
+                continue
+            cleaned = str(value).strip()
+            if cleaned:
+                return cleaned
+        return ""
+
+    imported = 0
+    skipped = 0
+    for row in reader:
+        first_name = get_value(row, "first_name", "first name", "first")
+        last_name = get_value(row, "last_name", "last name", "last")
+        if not first_name or not last_name:
+            skipped += 1
+            continue
+        email = get_value(row, "email", "email_address", "email address")
+        if email:
+            existing = session.exec(select(Contact).where(Contact.email == email)).first()
+            if existing:
+                skipped += 1
+                continue
+        phone = get_value(row, "phone", "phone_number", "phone number")
+        role = get_value(row, "role", "title")
+        notes = get_value(row, "notes", "note")
+        company_name = get_value(row, "company", "company_name", "company name")
+        company_id = None
+        if company_name:
+            company = session.exec(select(Company).where(func.lower(Company.name) == company_name.lower())).first()
+            if not company:
+                company = Company(name=company_name, created_at=now_utc(), updated_at=now_utc())
+                session.add(company)
+                session.commit()
+                session.refresh(company)
+            company_id = company.id
+
+        c = Contact(
+            first_name=first_name,
+            last_name=last_name,
+            email=email or None,
+            phone=phone or None,
+            role=role or None,
+            company_id=company_id,
+            notes=notes or None,
+            created_at=now_utc(),
+            updated_at=now_utc(),
+        )
+        session.add(c)
+        session.commit()
+        session.refresh(c)
+        add_activity(session, "CREATE", "Contact", c.id, f"Imported contact: {c.first_name} {c.last_name}")
+        imported += 1
+
+    return RedirectResponse(url=f"/contacts?imported={imported}&skipped={skipped}", status_code=303)
 
 @app.get("/contacts/{contact_id}", response_class=HTMLResponse)
 def contacts_detail(request: Request, contact_id: int, session=Depends(session_dep)):

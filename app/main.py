@@ -533,17 +533,17 @@ def assets_list(request: Request, session=Depends(session_dep)):
     contacts = session.exec(select(Contact).order_by(Contact.last_name, Contact.first_name)).all()
     return templates.TemplateResponse("assets.html", {"request": request, "assets": assets, "projects": projects, "contacts": contacts})
 
-@app.post("/assets/upload")
-async def assets_upload(
-    file: UploadFile = File(...),
-    tags: str = Form(""),
-    project_id: Optional[str] = Form(""),
-    contact_id: Optional[str] = Form(""),
-    notes: str = Form(""),
-    session=Depends(session_dep),
-):
+async def save_asset_upload(
+    file: UploadFile,
+    *,
+    tags: str,
+    project_id_value: Optional[int],
+    contact_id_value: Optional[int],
+    notes: str,
+    session,
+) -> Optional[Asset]:
     if not file.filename:
-        raise HTTPException(400, "No filename")
+        return None
     safe_name = os.path.basename(file.filename)
     token = uuid.uuid4().hex
     stored_name = f"{token}_{safe_name}"
@@ -560,8 +560,6 @@ async def assets_upload(
 
     stored_path.write_bytes(content)
 
-    project_id_value = parse_optional_int(project_id)
-    contact_id_value = parse_optional_int(contact_id)
     a = Asset(
         filename=safe_name,
         stored_path=str(stored_name),
@@ -577,7 +575,59 @@ async def assets_upload(
     session.commit()
     session.refresh(a)
     add_activity(session, "UPLOAD", "Asset", a.id, f"Uploaded asset: {a.filename}", changes={"size_bytes": a.size_bytes, "mime_type": a.mime_type})
+    return a
+
+@app.post("/assets/upload")
+async def assets_upload(
+    files: list[UploadFile] = File(...),
+    tags: str = Form(""),
+    project_id: Optional[str] = Form(""),
+    contact_id: Optional[str] = Form(""),
+    notes: str = Form(""),
+    session=Depends(session_dep),
+):
+    project_id_value = parse_optional_int(project_id)
+    contact_id_value = parse_optional_int(contact_id)
+    uploads = [
+        await save_asset_upload(
+            file,
+            tags=tags,
+            project_id_value=project_id_value,
+            contact_id_value=contact_id_value,
+            notes=notes,
+            session=session,
+        )
+        for file in files
+    ]
+    if not any(uploads):
+        raise HTTPException(400, "No files uploaded")
     return RedirectResponse(url="/assets", status_code=303)
+
+@app.post("/projects/{project_id}/assets/upload")
+async def project_assets_upload(
+    project_id: int,
+    files: list[UploadFile] = File(...),
+    tags: str = Form(""),
+    notes: str = Form(""),
+    session=Depends(session_dep),
+):
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    uploads = [
+        await save_asset_upload(
+            file,
+            tags=tags,
+            project_id_value=project_id,
+            contact_id_value=None,
+            notes=notes,
+            session=session,
+        )
+        for file in files
+    ]
+    if not any(uploads):
+        raise HTTPException(400, "No files uploaded")
+    return RedirectResponse(url=f"/projects/{project_id}", status_code=303)
 
 # ---------- Activity ----------
 @app.get("/activity", response_class=HTMLResponse)

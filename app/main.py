@@ -1,4 +1,5 @@
 from __future__ import annotations
+from sqlalchemy import func
 
 import mimetypes
 import os
@@ -48,13 +49,15 @@ def session_dep():
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, session=Depends(session_dep)):
     counts = {
-        "contacts": session.exec(select(Contact)).count(),
-        "companies": session.exec(select(Company)).count(),
-        "leads": session.exec(select(Lead)).count(),
-        "ideas": session.exec(select(Idea)).count(),
-        "projects": session.exec(select(Project)).count(),
-        "assets": session.exec(select(Asset)).count(),
-        "tasks_open": session.exec(select(Task).where(Task.status != "DONE")).count(),
+        "contacts": session.exec(select(func.count()).select_from(Contact)).one(),
+        "companies": session.exec(select(func.count()).select_from(Company)).one(),
+        "leads": session.exec(select(func.count()).select_from(Lead)).one(),
+        "ideas": session.exec(select(func.count()).select_from(Idea)).one(),
+        "projects": session.exec(select(func.count()).select_from(Project)).one(),
+        "assets": session.exec(select(func.count()).select_from(Asset)).one(),
+        "tasks_open": session.exec(
+            select(func.count()).select_from(Task).where(Task.status != "DONE")
+        ).one(),
     }
     recent = session.exec(select(Activity).order_by(Activity.ts.desc()).limit(20)).all()
     return templates.TemplateResponse("dashboard.html", {"request": request, "counts": counts, "recent": recent})

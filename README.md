@@ -26,4 +26,5 @@ Open: http://127.0.0.1:8000
 ## Notes
 - Uses **SQLite** DB stored at `app/data/crm.db`
 - Uploaded files stored at `app/data/uploads/` and served from `/uploads`
+- Asset uploads are limited to 25 MB and restricted to common design file types (by MIME type or extension).
 - No authentication yet (intended for local use while iterating). Add auth before exposing publicly.

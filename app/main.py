@@ -464,7 +464,7 @@ def contacts_bulk_flags(
 
 # ---------- Companies ----------
 @app.get("/companies", response_class=HTMLResponse)
-def companies_list(request: Request, q: str = "", session=Depends(session_dep)):
+def companies_list(request: Request, q: str = "", error: str = "", session=Depends(session_dep)):
     stmt = select(Company)
     if q:
         like = f"%{q}%"
@@ -476,20 +476,125 @@ def companies_list(request: Request, q: str = "", session=Depends(session_dep)):
             )
         )
     companies = session.exec(stmt.order_by(Company.name)).all()
-    return templates.TemplateResponse("companies.html", {"request": request, "companies": companies, "q": q})
+    return templates.TemplateResponse("companies.html", {"request": request, "companies": companies, "q": q, "error": error})
 
 @app.post("/companies")
 def companies_create(
     name: str = Form(...),
     website: str = Form(""),
     notes: str = Form(""),
+    is_lead: Optional[str] = Form(None),
+    is_prospect: Optional[str] = Form(None),
+    is_magazine: Optional[str] = Form(None),
+    is_newspaper: Optional[str] = Form(None),
     session=Depends(session_dep),
 ):
-    comp = Company(name=name.strip(), website=(website.strip() or None), notes=(notes.strip() or None), created_at=now_utc(), updated_at=now_utc())
+    comp = Company(
+        name=name.strip(),
+        website=(website.strip() or None),
+        notes=(notes.strip() or None),
+        is_lead=parse_optional_bool(is_lead),
+        is_prospect=parse_optional_bool(is_prospect),
+        is_magazine=parse_optional_bool(is_magazine),
+        is_newspaper=parse_optional_bool(is_newspaper),
+        created_at=now_utc(),
+        updated_at=now_utc(),
+    )
     session.add(comp)
     session.commit()
     session.refresh(comp)
     add_activity(session, "CREATE", "Company", comp.id, f"Created company: {comp.name}")
+    return RedirectResponse(url="/companies", status_code=303)
+
+def delete_company(session, company: Company) -> None:
+    contacts = session.exec(select(Contact).where(Contact.company_id == company.id)).all()
+    for contact in contacts:
+        contact.company_id = None
+        contact.updated_at = now_utc()
+        session.add(contact)
+    leads = session.exec(select(Lead).where(Lead.company_id == company.id)).all()
+    for lead in leads:
+        lead.company_id = None
+        lead.updated_at = now_utc()
+        session.add(lead)
+    projects = session.exec(select(Project).where(Project.company_id == company.id)).all()
+    for project in projects:
+        project.company_id = None
+        project.updated_at = now_utc()
+        session.add(project)
+    session.delete(company)
+    session.commit()
+    add_activity(session, "DELETE", "Company", company.id, f"Deleted company: {company.name}")
+
+@app.post("/companies/{company_id}/delete")
+def companies_delete(company_id: int, next_url: str = Form("/companies"), session=Depends(session_dep)):
+    company = session.get(Company, company_id)
+    if not company:
+        raise HTTPException(404, "Company not found")
+    delete_company(session, company)
+    return RedirectResponse(url=next_url, status_code=303)
+
+@app.post("/companies/bulk-delete")
+def companies_bulk_delete(
+    company_ids: list[int] = Form([]),
+    session=Depends(session_dep),
+):
+    if not company_ids:
+        return RedirectResponse(url="/companies?error=missing_selection", status_code=303)
+    companies = session.exec(select(Company).where(Company.id.in_(company_ids))).all()
+    for company in companies:
+        delete_company(session, company)
+    return RedirectResponse(url="/companies", status_code=303)
+
+@app.post("/companies/bulk-flags")
+def companies_bulk_flags(
+    company_ids: list[int] = Form([]),
+    lead_action: str = Form("no_change"),
+    prospect_action: str = Form("no_change"),
+    magazine_action: str = Form("no_change"),
+    newspaper_action: str = Form("no_change"),
+    session=Depends(session_dep),
+):
+    if not company_ids:
+        return RedirectResponse(url="/companies?error=missing_selection", status_code=303)
+    if all(action == "no_change" for action in [lead_action, prospect_action, magazine_action, newspaper_action]):
+        return RedirectResponse(url="/companies?error=missing_flags", status_code=303)
+    companies = session.exec(select(Company).where(Company.id.in_(company_ids))).all()
+    for company in companies:
+        before = {
+            "is_lead": company.is_lead,
+            "is_prospect": company.is_prospect,
+            "is_magazine": company.is_magazine,
+            "is_newspaper": company.is_newspaper,
+        }
+        if lead_action == "flag":
+            company.is_lead = True
+        elif lead_action == "unflag":
+            company.is_lead = False
+        if prospect_action == "flag":
+            company.is_prospect = True
+        elif prospect_action == "unflag":
+            company.is_prospect = False
+        if magazine_action == "flag":
+            company.is_magazine = True
+        elif magazine_action == "unflag":
+            company.is_magazine = False
+        if newspaper_action == "flag":
+            company.is_newspaper = True
+        elif newspaper_action == "unflag":
+            company.is_newspaper = False
+        company.updated_at = now_utc()
+        session.add(company)
+        session.commit()
+        after = {
+            "is_lead": company.is_lead,
+            "is_prospect": company.is_prospect,
+            "is_magazine": company.is_magazine,
+            "is_newspaper": company.is_newspaper,
+        }
+        changes = {k: {"from": before[k], "to": after[k]} for k in before if before[k] != after[k]}
+        if changes:
+            add_activity(session, "UPDATE", "Company", company.id, f"Updated company flags: {company.name}", changes=changes)
     return RedirectResponse(url="/companies", status_code=303)
 
 # ---------- Leads ----------

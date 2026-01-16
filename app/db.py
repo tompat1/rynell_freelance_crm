@@ -24,9 +24,28 @@ def ensure_contact_flag_columns() -> None:
         if missing_columns:
             conn.commit()
 
+def ensure_company_flag_columns() -> None:
+    with engine.connect() as conn:
+        result = conn.execute(text("PRAGMA table_info(company)"))
+        existing_columns = {row[1] for row in result}
+        missing_columns = []
+        if "is_lead" not in existing_columns:
+            missing_columns.append("ALTER TABLE company ADD COLUMN is_lead BOOLEAN NOT NULL DEFAULT 0")
+        if "is_prospect" not in existing_columns:
+            missing_columns.append("ALTER TABLE company ADD COLUMN is_prospect BOOLEAN NOT NULL DEFAULT 0")
+        if "is_magazine" not in existing_columns:
+            missing_columns.append("ALTER TABLE company ADD COLUMN is_magazine BOOLEAN NOT NULL DEFAULT 0")
+        if "is_newspaper" not in existing_columns:
+            missing_columns.append("ALTER TABLE company ADD COLUMN is_newspaper BOOLEAN NOT NULL DEFAULT 0")
+        for statement in missing_columns:
+            conn.execute(text(statement))
+        if missing_columns:
+            conn.commit()
+
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
     ensure_contact_flag_columns()
+    ensure_company_flag_columns()
 
 def get_session() -> Session:
     return Session(engine)

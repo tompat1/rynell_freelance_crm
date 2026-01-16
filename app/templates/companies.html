@@ -5,11 +5,59 @@
     <p class="text-slate-600">Client orgs + brands.</p>
   </div>
 
+  {% if error == "missing_selection" %}
+    <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+      Select at least one company to update.
+    </div>
+  {% endif %}
+  {% if error == "missing_flags" %}
+    <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+      Choose at least one flag action to apply.
+    </div>
+  {% endif %}
+
   <div class="grid md:grid-cols-3 gap-6 mt-6">
     <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b">
-        <div class="font-semibold">All companies</div>
-        <form method="get" action="/companies" class="mt-3">
+      <div class="p-4 border-b space-y-3">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <input id="select-all-companies" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+            <label for="select-all-companies" class="font-semibold">All companies</label>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <form id="company-bulk-flags-form" method="post" action="/companies/bulk-flags" class="flex flex-wrap items-center gap-2 text-xs">
+              <label class="text-slate-500">Lead</label>
+              <select name="lead_action" class="border rounded-lg px-2 py-1 text-xs">
+                <option value="no_change">No change</option>
+                <option value="flag">Flag</option>
+                <option value="unflag">Unflag</option>
+              </select>
+              <label class="text-slate-500">Prospect</label>
+              <select name="prospect_action" class="border rounded-lg px-2 py-1 text-xs">
+                <option value="no_change">No change</option>
+                <option value="flag">Flag</option>
+                <option value="unflag">Unflag</option>
+              </select>
+              <label class="text-slate-500">Magazine</label>
+              <select name="magazine_action" class="border rounded-lg px-2 py-1 text-xs">
+                <option value="no_change">No change</option>
+                <option value="flag">Flag</option>
+                <option value="unflag">Unflag</option>
+              </select>
+              <label class="text-slate-500">Newspaper</label>
+              <select name="newspaper_action" class="border rounded-lg px-2 py-1 text-xs">
+                <option value="no_change">No change</option>
+                <option value="flag">Flag</option>
+                <option value="unflag">Unflag</option>
+              </select>
+              <button type="submit" class="text-xs font-semibold text-slate-700 hover:text-slate-900 disabled:text-slate-300" disabled>Apply flags</button>
+            </form>
+            <form id="company-bulk-delete-form" method="post" action="/companies/bulk-delete" onsubmit="return confirm('Delete selected companies?');">
+              <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:text-rose-300" disabled>Delete selected</button>
+            </form>
+          </div>
+        </div>
+        <form method="get" action="/companies">
           <input
             class="border rounded-xl px-3 py-2 text-sm w-full"
             type="search"
@@ -21,12 +69,37 @@
       </div>
       <div class="divide-y">
         {% for c in companies %}
-          <div class="p-4">
-            <div class="font-medium">{{ c.name }}</div>
-            <div class="text-sm text-slate-600 mt-1">
-              {% if c.website %}{{ c.website }}{% endif %}
+          <div class="flex items-start justify-between gap-4 p-4 hover:bg-slate-50">
+            <input type="checkbox" name="company_ids" value="{{ c.id }}" class="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 company-select"/>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <div class="font-medium">{{ c.name }}</div>
+                <div class="text-xs text-slate-500">#{{ c.id }}</div>
+              </div>
+              <div class="text-sm text-slate-600 mt-1">
+                {% if c.website %}{{ c.website }}{% endif %}
+              </div>
+              {% if c.notes %}<div class="text-sm text-slate-600 mt-2">{{ c.notes }}</div>{% endif %}
+              {% if c.is_lead or c.is_prospect or c.is_magazine or c.is_newspaper %}
+                <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                  {% if c.is_lead %}
+                    <span class="rounded-full bg-amber-100 text-amber-700 px-2 py-1 font-semibold">Lead</span>
+                  {% endif %}
+                  {% if c.is_prospect %}
+                    <span class="rounded-full bg-blue-100 text-blue-700 px-2 py-1 font-semibold">Prospect</span>
+                  {% endif %}
+                  {% if c.is_magazine %}
+                    <span class="rounded-full bg-purple-100 text-purple-700 px-2 py-1 font-semibold">Magazine</span>
+                  {% endif %}
+                  {% if c.is_newspaper %}
+                    <span class="rounded-full bg-emerald-100 text-emerald-700 px-2 py-1 font-semibold">Newspaper</span>
+                  {% endif %}
+                </div>
+              {% endif %}
             </div>
-            {% if c.notes %}<div class="text-sm text-slate-600 mt-2">{{ c.notes }}</div>{% endif %}
+            <form method="post" action="/companies/{{ c.id }}/delete" onsubmit="return confirm('Delete {{ c.name }}?');">
+              <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-700">Delete</button>
+            </form>
           </div>
         {% else %}
           <div class="p-4 text-slate-600">
@@ -41,9 +114,77 @@
       <form method="post" action="/companies" class="space-y-2">
         <input class="border rounded-xl px-3 py-2 text-sm w-full" name="name" placeholder="Company name" required/>
         <input class="border rounded-xl px-3 py-2 text-sm w-full" name="website" placeholder="Website"/>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_lead" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+            Lead
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_prospect" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+            Prospect
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_magazine" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+            Magazine
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_newspaper" class="h-4 w-4 rounded border-slate-300 text-slate-900"/>
+            Newspaper
+          </label>
+        </div>
         <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="3" placeholder="Notes"></textarea>
         <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Create</button>
       </form>
     </div>
   </div>
+
+  <script>
+    const selectAllCompanies = document.getElementById("select-all-companies");
+    const companyCheckboxes = Array.from(document.querySelectorAll(".company-select"));
+    const bulkDeleteButton = document.querySelector("#company-bulk-delete-form button");
+    const bulkFlagsButton = document.querySelector("#company-bulk-flags-form button");
+    const bulkDeleteForm = document.getElementById("company-bulk-delete-form");
+    const bulkFlagsForm = document.getElementById("company-bulk-flags-form");
+
+    const syncCompanyForm = (form) => {
+      form.querySelectorAll("input[type='hidden'][name='company_ids']").forEach((input) => input.remove());
+      companyCheckboxes.filter((checkbox) => checkbox.checked).forEach((checkbox) => {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = "company_ids";
+        hidden.value = checkbox.value;
+        form.appendChild(hidden);
+      });
+    };
+
+    const updateCompanyBulkState = () => {
+      const anyChecked = companyCheckboxes.some((checkbox) => checkbox.checked);
+      bulkDeleteButton.disabled = !anyChecked;
+      bulkFlagsButton.disabled = !anyChecked;
+      if (companyCheckboxes.length) {
+        const allChecked = companyCheckboxes.every((checkbox) => checkbox.checked);
+        selectAllCompanies.checked = allChecked;
+        selectAllCompanies.indeterminate = !allChecked && anyChecked;
+      }
+    };
+
+    selectAllCompanies.addEventListener("change", (event) => {
+      companyCheckboxes.forEach((checkbox) => {
+        checkbox.checked = event.target.checked;
+      });
+      updateCompanyBulkState();
+    });
+
+    companyCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateCompanyBulkState);
+    });
+
+    bulkDeleteForm.addEventListener("submit", () => {
+      syncCompanyForm(bulkDeleteForm);
+    });
+
+    bulkFlagsForm.addEventListener("submit", () => {
+      syncCompanyForm(bulkFlagsForm);
+    });
+  </script>
 {% endblock %}

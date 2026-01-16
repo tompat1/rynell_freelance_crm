@@ -11,6 +11,10 @@ class Company(SQLModel, table=True):
     name: str
     website: Optional[str] = None
     notes: Optional[str] = None
+    is_lead: bool = False
+    is_prospect: bool = False
+    is_magazine: bool = False
+    is_newspaper: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

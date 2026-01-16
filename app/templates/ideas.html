@@ -2,39 +2,44 @@
 {% block content %}
   <div>
     <h1 class="text-2xl font-semibold">Ideas</h1>
-    <p class="text-slate-600">Track concepts, content ideas, potential products, experiments.</p>
+    <p class="text-slate-600 dark:text-slate-300">Track concepts, content ideas, potential products, experiments.</p>
   </div>
 
-  <div class="bg-white border rounded-2xl shadow-sm p-4 mt-6">
+  <div class="card p-4 mt-6">
     <div class="font-semibold mb-3">Add idea</div>
     <form method="post" action="/ideas" class="grid md:grid-cols-6 gap-2">
-      <input class="border rounded-xl px-3 py-2 text-sm md:col-span-3" name="title" placeholder="Idea title" required/>
-      <select class="border rounded-xl px-3 py-2 text-sm" name="status">
+      <input class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm md:col-span-3 dark:border-slate-700/70" name="title" placeholder="Idea title" required/>
+      <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm dark:border-slate-700/70" name="status">
         {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
       </select>
-      <input class="border rounded-xl px-3 py-2 text-sm md:col-span-2" name="tags" placeholder="Tags (comma separated)"/>
-      <textarea class="border rounded-xl px-3 py-2 text-sm md:col-span-6" name="notes" rows="2" placeholder="Notes"></textarea>
-      <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm md:col-span-2">Create</button>
+      <input class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm md:col-span-2 dark:border-slate-700/70" name="tags" placeholder="Tags (comma separated)"/>
+      <textarea class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm md:col-span-6 dark:border-slate-700/70" name="notes" rows="2" placeholder="Notes"></textarea>
+      <button class="btn-primary md:col-span-2">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" />
+        </svg>
+        Create
+      </button>
     </form>
   </div>
 
-  <div class="bg-white border rounded-2xl shadow-sm overflow-hidden mt-6">
-    <div class="p-4 border-b font-semibold">All ideas</div>
-    <div class="divide-y">
+  <div class="card overflow-hidden mt-6">
+    <div class="p-4 border-b border-slate-200/80 dark:border-slate-800/80 font-semibold">All ideas</div>
+    <div class="divide-y divide-slate-200/80 dark:divide-slate-800/80">
       {% for i in ideas %}
         <div class="p-4">
           <div class="flex items-center justify-between gap-4">
             <div class="font-medium">{{ i.title }}</div>
-            <div class="text-xs text-slate-500">{{ i.status }} • #{{ i.id }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">{{ i.status }} • #{{ i.id }}</div>
           </div>
-          <div class="text-sm text-slate-600 mt-1">
-            {% if i.tags %}<span class="text-slate-700">Tags:</span> {{ i.tags }}{% endif %}
+          <div class="text-sm text-slate-600 dark:text-slate-300 mt-1">
+            {% if i.tags %}<span class="text-slate-700 dark:text-slate-200">Tags:</span> {{ i.tags }}{% endif %}
           </div>
-          {% if i.notes %}<div class="text-sm text-slate-700 mt-2">{{ i.notes }}</div>{% endif %}
-          <div class="text-xs text-slate-500 mt-2">Updated {{ i.updated_at }}</div>
+          {% if i.notes %}<div class="text-sm text-slate-700 dark:text-slate-200 mt-2">{{ i.notes }}</div>{% endif %}
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-2">Updated {{ i.updated_at }}</div>
         </div>
       {% else %}
-        <div class="p-4 text-slate-600">No ideas yet.</div>
+        <div class="p-4 text-slate-600 dark:text-slate-300">No ideas yet.</div>
       {% endfor %}
     </div>
   </div>

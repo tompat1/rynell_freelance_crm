@@ -2,66 +2,71 @@
 {% block content %}
   <div>
     <h1 class="text-2xl font-semibold">Assets</h1>
-    <p class="text-slate-600">Upload, tag, and link files to projects/contacts.</p>
+    <p class="text-slate-600 dark:text-slate-300">Upload, tag, and link files to projects/contacts.</p>
   </div>
 
   <div class="grid md:grid-cols-3 gap-6 mt-6">
-    <div class="bg-white border rounded-2xl shadow-sm p-4">
+    <div class="card p-4">
       <div class="font-semibold mb-3">Upload assets</div>
       <form method="post" action="/assets/upload" enctype="multipart/form-data" class="space-y-2">
-        <input type="file" name="files" multiple class="border rounded-xl px-3 py-2 text-sm w-full" required/>
-        <div class="text-xs text-slate-500">You can upload multiple files at once.</div>
-        <input class="border rounded-xl px-3 py-2 text-sm w-full" name="tags" placeholder="Tags (comma separated)"/>
-        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="project_id">
+        <input type="file" name="files" multiple class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" required/>
+        <div class="text-xs text-slate-500 dark:text-slate-400">You can upload multiple files at once.</div>
+        <input class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="tags" placeholder="Tags (comma separated)"/>
+        <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="project_id">
           <option value="">Link to project</option>
           {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
         </select>
-        <select class="border rounded-xl px-3 py-2 text-sm w-full" name="contact_id">
+        <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="contact_id">
           <option value="">Link to contact</option>
           {% for c in contacts %}<option value="{{ c.id }}">{{ c.last_name }}, {{ c.first_name }}</option>{% endfor %}
         </select>
-        <textarea class="border rounded-xl px-3 py-2 text-sm w-full" name="notes" rows="2" placeholder="Notes"></textarea>
-        <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Upload</button>
+        <textarea class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="notes" rows="2" placeholder="Notes"></textarea>
+        <button class="btn-primary w-full">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4-4 4M4 20h16" />
+          </svg>
+          Upload
+        </button>
       </form>
     </div>
 
-    <div class="md:col-span-2 bg-white border rounded-2xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b">
+    <div class="md:col-span-2 card overflow-hidden">
+      <div class="p-4 border-b border-slate-200/80 dark:border-slate-800/80">
         <div class="flex items-center justify-between gap-4">
           <div class="font-semibold">Recent assets</div>
-          <div class="text-xs text-slate-500">{{ assets|length }} shown</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">{{ assets|length }} shown</div>
         </div>
         <form method="get" action="/assets" class="mt-3 grid md:grid-cols-6 gap-2 items-end">
           <input type="hidden" name="view" value="{{ view }}"/>
-          <input class="border rounded-xl px-3 py-2 text-sm w-full md:col-span-2" name="q" value="{{ q }}" placeholder="Search filename, tags, notes"/>
-          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="project_id">
+          <input class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full md:col-span-2 dark:border-slate-700/70" name="q" value="{{ q }}" placeholder="Search filename, tags, notes"/>
+          <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="project_id">
             <option value="">All projects</option>
             {% for p in projects %}
               <option value="{{ p.id }}" {% if project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
             {% endfor %}
           </select>
-          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="contact_id">
+          <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="contact_id">
             <option value="">All contacts</option>
             {% for c in contacts %}
               <option value="{{ c.id }}" {% if contact_id == c.id %}selected{% endif %}>{{ c.last_name }}, {{ c.first_name }}</option>
             {% endfor %}
           </select>
-          <select class="border rounded-xl px-3 py-2 text-sm w-full" name="file_type">
+          <select class="border border-slate-200/70 rounded-xl px-3 py-2 text-sm w-full dark:border-slate-700/70" name="file_type">
             <option value="">All types</option>
             {% for t in ["image","video","document","other"] %}
               <option value="{{ t }}" {% if file_type == t %}selected{% endif %}>{{ t|capitalize }}</option>
             {% endfor %}
           </select>
-          <button class="bg-slate-900 text-white rounded-xl px-3 py-2 text-sm w-full">Filter</button>
+          <button class="btn-secondary w-full">Filter</button>
         </form>
-        <div class="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <div class="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
           <div class="flex items-center gap-2">
             <span>View</span>
-            <a class="px-2 py-1 rounded-lg border {% if view == 'thumbs' %}bg-slate-900 text-white border-slate-900{% else %}text-slate-600{% endif %}"
+            <a class="px-2 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700/80 {% if view == 'thumbs' %}bg-slate-900 text-white border-slate-900 dark:bg-slate-200 dark:text-slate-900{% else %}text-slate-600 dark:text-slate-300{% endif %}"
                href="/assets?view=thumbs&q={{ q|urlencode }}&project_id={{ project_id }}&contact_id={{ contact_id }}&file_type={{ file_type }}">
               Thumbs
             </a>
-            <a class="px-2 py-1 rounded-lg border {% if view == 'list' %}bg-slate-900 text-white border-slate-900{% else %}text-slate-600{% endif %}"
+            <a class="px-2 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700/80 {% if view == 'list' %}bg-slate-900 text-white border-slate-900 dark:bg-slate-200 dark:text-slate-900{% else %}text-slate-600 dark:text-slate-300{% endif %}"
                href="/assets?view=list&q={{ q|urlencode }}&project_id={{ project_id }}&contact_id={{ contact_id }}&file_type={{ file_type }}">
               List
             </a>
@@ -72,10 +77,10 @@
         </div>
       </div>
       {% if view == "list" %}
-        <div class="divide-y">
+        <div class="divide-y divide-slate-200/80 dark:divide-slate-800/80">
           {% for a in assets %}
             <div class="p-4 flex items-start gap-4">
-              <div class="h-20 w-20 rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+              <div class="h-20 w-20 rounded-xl border border-slate-200/80 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900 overflow-hidden flex items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                 {% if a.mime_type and a.mime_type.startswith("image/") %}
                   <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
                 {% else %}
@@ -86,28 +91,33 @@
                 <div class="flex items-start justify-between gap-4">
                   <div>
                     <a class="font-medium underline" href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">{{ a.filename }}</a>
-                    <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes • uploaded {{ a.created_at }}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes • uploaded {{ a.created_at }}</div>
                   </div>
-                  <div class="text-xs text-slate-500">#{{ a.id }}</div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">#{{ a.id }}</div>
                 </div>
-                {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
-                {% if a.notes %}<div class="text-sm text-slate-700 mt-2">{{ a.notes }}</div>{% endif %}
+                {% if a.tags %}<div class="text-xs text-slate-600 dark:text-slate-300 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+                {% if a.notes %}<div class="text-sm text-slate-700 dark:text-slate-200 mt-2">{{ a.notes }}</div>{% endif %}
                 <form method="post" action="/assets/{{ a.id }}/delete" class="mt-3" onsubmit="return confirm('Delete this asset?');">
                   <input type="hidden" name="next_url" value="{{ current_url }}"/>
-                  <button class="text-xs text-red-600">Delete</button>
+                  <button class="btn-danger text-xs px-3 py-1.5">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                    </svg>
+                    Delete
+                  </button>
                 </form>
               </div>
             </div>
           {% else %}
-            <div class="p-4 text-slate-600">No assets yet.</div>
+            <div class="p-4 text-slate-600 dark:text-slate-300">No assets yet.</div>
           {% endfor %}
         </div>
       {% else %}
         <div class="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {% for a in assets %}
-            <div class="border rounded-xl p-3">
+            <div class="border border-slate-200/80 dark:border-slate-700/70 rounded-xl p-3 bg-white/80 dark:bg-slate-900/60">
               <a href="/uploads/{{ a.stored_path }}" target="_blank" rel="noreferrer">
-                <div class="h-28 w-full rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+                <div class="h-28 w-full rounded-xl border border-slate-200/80 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900 overflow-hidden flex items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                   {% if a.mime_type and a.mime_type.startswith("image/") %}
                     <img src="/uploads/{{ a.stored_path }}" alt="{{ a.filename }}" class="h-full w-full object-cover"/>
                   {% else %}
@@ -115,16 +125,21 @@
                   {% endif %}
                 </div>
                 <div class="text-sm font-medium truncate mt-2">{{ a.filename }}</div>
-                <div class="text-xs text-slate-500 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes</div>
-                {% if a.tags %}<div class="text-xs text-slate-600 mt-2">Tags: {{ a.tags }}</div>{% endif %}
+                <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ a.mime_type or "file" }} • {{ a.size_bytes or 0 }} bytes</div>
+                {% if a.tags %}<div class="text-xs text-slate-600 dark:text-slate-300 mt-2">Tags: {{ a.tags }}</div>{% endif %}
               </a>
               <form method="post" action="/assets/{{ a.id }}/delete" class="mt-3" onsubmit="return confirm('Delete this asset?');">
                 <input type="hidden" name="next_url" value="{{ current_url }}"/>
-                <button class="text-xs text-red-600">Delete</button>
+                <button class="btn-danger text-xs px-3 py-1.5">
+                  <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                  </svg>
+                  Delete
+                </button>
               </form>
             </div>
           {% else %}
-            <div class="text-slate-600">No assets yet.</div>
+            <div class="text-slate-600 dark:text-slate-300">No assets yet.</div>
           {% endfor %}
         </div>
       {% endif %}

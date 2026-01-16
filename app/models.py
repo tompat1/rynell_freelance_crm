@@ -23,6 +23,8 @@ class Contact(SQLModel, table=True):
     role: Optional[str] = None
     company_id: Optional[int] = Field(default=None, foreign_key="company.id")
     notes: Optional[str] = None
+    is_lead: bool = False
+    is_prospect: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

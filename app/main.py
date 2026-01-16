@@ -464,9 +464,19 @@ def contacts_bulk_flags(
 
 # ---------- Companies ----------
 @app.get("/companies", response_class=HTMLResponse)
-def companies_list(request: Request, session=Depends(session_dep)):
-    companies = session.exec(select(Company).order_by(Company.name)).all()
-    return templates.TemplateResponse("companies.html", {"request": request, "companies": companies})
+def companies_list(request: Request, q: str = "", session=Depends(session_dep)):
+    stmt = select(Company)
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                Company.name.like(like),
+                Company.website.like(like),
+                Company.notes.like(like),
+            )
+        )
+    companies = session.exec(stmt.order_by(Company.name)).all()
+    return templates.TemplateResponse("companies.html", {"request": request, "companies": companies, "q": q})
 
 @app.post("/companies")
 def companies_create(

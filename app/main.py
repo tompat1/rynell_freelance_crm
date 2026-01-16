@@ -842,6 +842,7 @@ async def save_asset_upload(
     notes: str,
     session,
 ) -> Optional[Asset]:
+    session.expire_on_commit = False
     if not file.filename:
         return None
     safe_name = os.path.basename(file.filename)

@@ -88,6 +88,11 @@ def parse_optional_int(value: Optional[str]) -> Optional[int]:
     except (TypeError, ValueError):
         return None
 
+def parse_optional_bool(value: Optional[str]) -> bool:
+    if value is None:
+        return False
+    return str(value).lower() in {"1", "true", "yes", "on"}
+
 def add_activity(session, action: str, entity_type: str, entity_id: Optional[int], summary: str, changes: Optional[dict] = None):
     session.add(Activity(action=action, entity_type=entity_type, entity_id=entity_id, summary=summary, changes=changes))
     session.commit()
@@ -178,6 +183,8 @@ def contacts_create(
     role: str = Form(""),
     company_id: Optional[str] = Form(""),
     notes: str = Form(""),
+    is_lead: Optional[str] = Form(None),
+    is_prospect: Optional[str] = Form(None),
     session=Depends(session_dep),
 ):
     company_id_value = parse_optional_int(company_id)
@@ -189,6 +196,8 @@ def contacts_create(
         role=(role.strip() or None),
         company_id=company_id_value,
         notes=(notes.strip() or None),
+        is_lead=parse_optional_bool(is_lead),
+        is_prospect=parse_optional_bool(is_prospect),
         created_at=now_utc(),
         updated_at=now_utc(),
     )
@@ -330,12 +339,24 @@ def contacts_update(
     role: str = Form(""),
     company_id: Optional[str] = Form(""),
     notes: str = Form(""),
+    is_lead: Optional[str] = Form(None),
+    is_prospect: Optional[str] = Form(None),
     session=Depends(session_dep),
 ):
     c = session.get(Contact, contact_id)
     if not c:
         raise HTTPException(404, "Contact not found")
-    before = {"first_name": c.first_name, "last_name": c.last_name, "email": c.email, "phone": c.phone, "role": c.role, "company_id": c.company_id, "notes": c.notes}
+    before = {
+        "first_name": c.first_name,
+        "last_name": c.last_name,
+        "email": c.email,
+        "phone": c.phone,
+        "role": c.role,
+        "company_id": c.company_id,
+        "notes": c.notes,
+        "is_lead": c.is_lead,
+        "is_prospect": c.is_prospect,
+    }
     company_id_value = parse_optional_int(company_id)
     c.first_name = first_name.strip()
     c.last_name = last_name.strip()
@@ -344,10 +365,22 @@ def contacts_update(
     c.role = (role.strip() or None)
     c.company_id = company_id_value
     c.notes = (notes.strip() or None)
+    c.is_lead = parse_optional_bool(is_lead)
+    c.is_prospect = parse_optional_bool(is_prospect)
     c.updated_at = now_utc()
     session.add(c)
     session.commit()
-    after = {"first_name": c.first_name, "last_name": c.last_name, "email": c.email, "phone": c.phone, "role": c.role, "company_id": c.company_id, "notes": c.notes}
+    after = {
+        "first_name": c.first_name,
+        "last_name": c.last_name,
+        "email": c.email,
+        "phone": c.phone,
+        "role": c.role,
+        "company_id": c.company_id,
+        "notes": c.notes,
+        "is_lead": c.is_lead,
+        "is_prospect": c.is_prospect,
+    }
     changes = {k: {"from": before[k], "to": after[k]} for k in before if before[k] != after[k]}
     if changes:
         add_activity(session, "UPDATE", "Contact", c.id, f"Updated contact: {c.first_name} {c.last_name}", changes=changes)
@@ -396,6 +429,37 @@ def contacts_bulk_delete(
     contacts = session.exec(select(Contact).where(Contact.id.in_(contact_ids))).all()
     for contact in contacts:
         delete_contact(session, contact)
+    return RedirectResponse(url="/contacts", status_code=303)
+
+@app.post("/contacts/bulk-flags")
+def contacts_bulk_flags(
+    contact_ids: list[int] = Form([]),
+    lead_action: str = Form("no_change"),
+    prospect_action: str = Form("no_change"),
+    session=Depends(session_dep),
+):
+    if not contact_ids:
+        return RedirectResponse(url="/contacts?error=missing_selection", status_code=303)
+    if lead_action == "no_change" and prospect_action == "no_change":
+        return RedirectResponse(url="/contacts?error=missing_flags", status_code=303)
+    contacts = session.exec(select(Contact).where(Contact.id.in_(contact_ids))).all()
+    for contact in contacts:
+        before = {"is_lead": contact.is_lead, "is_prospect": contact.is_prospect}
+        if lead_action == "flag":
+            contact.is_lead = True
+        elif lead_action == "unflag":
+            contact.is_lead = False
+        if prospect_action == "flag":
+            contact.is_prospect = True
+        elif prospect_action == "unflag":
+            contact.is_prospect = False
+        contact.updated_at = now_utc()
+        session.add(contact)
+        session.commit()
+        after = {"is_lead": contact.is_lead, "is_prospect": contact.is_prospect}
+        changes = {k: {"from": before[k], "to": after[k]} for k in before if before[k] != after[k]}
+        if changes:
+            add_activity(session, "UPDATE", "Contact", contact.id, f"Updated contact flags: {contact.first_name} {contact.last_name}", changes=changes)
     return RedirectResponse(url="/contacts", status_code=303)
 
 # ---------- Companies ----------

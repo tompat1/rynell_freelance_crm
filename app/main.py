@@ -97,6 +97,18 @@ def add_activity(session, action: str, entity_type: str, entity_id: Optional[int
     session.add(Activity(action=action, entity_type=entity_type, entity_id=entity_id, summary=summary, changes=changes))
     session.commit()
 
+def group_activity_by_date(items: list[Activity]) -> list[dict]:
+    grouped: dict[str, dict] = {}
+    for entry in items:
+        date_key = entry.ts.strftime("%Y-%m-%d")
+        if date_key not in grouped:
+            grouped[date_key] = {
+                "label": entry.ts.strftime("%b %d, %Y"),
+                "entries": [],
+            }
+        grouped[date_key]["entries"].append(entry)
+    return list(grouped.values())
+
 def extract_emails(raw: str) -> list[str]:
     if not raw:
         return []
@@ -748,6 +760,7 @@ def projects_detail(request: Request, project_id: int, session=Depends(session_d
     assets = session.exec(select(Asset).where(Asset.project_id == project_id).order_by(Asset.created_at.desc())).all()
     events = session.exec(select(Event).where(Event.project_id == project_id).order_by(Event.start.desc())).all()
     activity = session.exec(select(Activity).where(Activity.entity_type == "Project", Activity.entity_id == project_id).order_by(Activity.ts.desc()).limit(100)).all()
+    grouped_activity = group_activity_by_date(activity)
     return templates.TemplateResponse("project_detail.html", {
         "request": request,
         "project": p,
@@ -757,6 +770,7 @@ def projects_detail(request: Request, project_id: int, session=Depends(session_d
         "assets": assets,
         "events": events,
         "activity": activity,
+        "grouped_activity": grouped_activity,
         "statuses": PROJECT_STATUSES,
     })
 
@@ -1070,6 +1084,19 @@ def assets_delete(asset_id: int, next_url: str = Form("/assets"), session=Depend
 
 # ---------- Activity ----------
 @app.get("/activity", response_class=HTMLResponse)
-def activity_feed(request: Request, session=Depends(session_dep)):
-    items = session.exec(select(Activity).order_by(Activity.ts.desc()).limit(300)).all()
-    return templates.TemplateResponse("activity.html", {"request": request, "items": items})
+def activity_feed(request: Request, q: str = "", session=Depends(session_dep)):
+    query = select(Activity)
+    search = q.strip()
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(or_(
+            Activity.summary.ilike(pattern),
+            Activity.action.ilike(pattern),
+            Activity.entity_type.ilike(pattern),
+        ))
+    items = session.exec(query.order_by(Activity.ts.desc()).limit(300)).all()
+    grouped_activity = group_activity_by_date(items)
+    return templates.TemplateResponse(
+        "activity.html",
+        {"request": request, "items": items, "grouped_activity": grouped_activity, "q": search},
+    )

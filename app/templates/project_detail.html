@@ -123,12 +123,19 @@
       <div class="card overflow-hidden">
         <div class="p-4 border-b border-slate-200/80 dark:border-slate-800/80 font-semibold">Project history</div>
         {% if grouped_activity %}
-          <div class="divide-y divide-slate-200/80 dark:divide-slate-800/80">
+          <div class="space-y-3">
             {% for group in grouped_activity %}
-              <details class="group" {% if loop.first %}open{% endif %}>
-                <summary class="flex items-center justify-between gap-4 cursor-pointer list-none p-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+              <details class="group rounded-2xl border border-slate-200/80 bg-white/80 shadow-sm transition hover:border-slate-300/80 dark:border-slate-800/80 dark:bg-slate-900/40 dark:hover:border-slate-700/80" {% if loop.first %}open{% endif %}>
+                <summary class="flex items-center justify-between gap-4 cursor-pointer list-none p-4 text-sm font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 dark:text-slate-200 dark:focus-visible:ring-slate-500/40">
                   <span>{{ group.label }}</span>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">{{ group.entries | length }} updates</span>
+                  <span class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                    {{ group.entries | length }} updates
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-600 shadow-sm transition group-open:rotate-180 dark:border-slate-700/80 dark:bg-slate-900/60 dark:text-slate-300">
+                      <svg viewBox="0 0 20 20" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 0 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.24-4.5a.75.75 0 0 1 .02-1.06z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
+                  </span>
                 </summary>
                 <div class="divide-y divide-slate-200/80 dark:divide-slate-800/80 pb-2">
                   {% for a in group.entries %}
